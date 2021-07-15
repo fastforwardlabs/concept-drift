@@ -1,4 +1,3 @@
-
 import time
 from collections import defaultdict
 
@@ -71,6 +70,7 @@ class Experiment:
         Evaluates the saved model on all data in the specified window
 
         Args:
+            window (str) - specifies full window to evaluate on (detection/reference)
 
         Returns:
             test_accuracy (float) - single metric describing aggregate score on window
@@ -128,6 +128,7 @@ class Experiment:
         of equally spaced evaluation points (n) desired within the window.
 
         Args:
+            n (int) - number of splits within a window to log scores for
 
         Returns:
             test_accuracy (list) - list of tuples specifying index and cumulative score
@@ -161,10 +162,6 @@ class Experiment:
             idx += step
 
         return test_scores
-
-    def predict(self, window="detection"):
-        """Generates predictions on the specified window"""
-        pass
 
     def calculate_label_expense(self):
         """A postprocessing step to aggregate and save label expense metrics"""
