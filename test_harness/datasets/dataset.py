@@ -1,9 +1,6 @@
-import time
 from typing import Dict
-from collections import defaultdict
 
 import pandas as pd
-from river import metrics
 
 
 class Dataset:
@@ -15,7 +12,7 @@ class Dataset:
         self.set_splits()
 
     def set_splits(self):
-
+        """Use the specified window_size to set an attribute that holds corresponding index splits"""
         idx = self.window_size
 
         splits = []
@@ -88,7 +85,8 @@ class Dataset:
         Given an index into the full_df, return all records up to that observation.
 
         Args:
-            idx (int) - index corresponding to the row in full_df
+            start_idx (int) - index corresponding to the row in full_df
+            end_idx (int) - index corresponding to the row in full_df
             split_labels (bool) - return features and labels separately vs. as one dataframe
 
         Returns:
