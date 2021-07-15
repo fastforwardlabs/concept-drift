@@ -6,6 +6,7 @@ from river import metrics
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import MinMaxScaler
 
+
 class Experiment:
     def __init__(self, model, dataset):
 
