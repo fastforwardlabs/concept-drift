@@ -96,38 +96,6 @@ class Experiment:
         of equally spaced evaluation points (n) desired within the window.
 
         Args:
-
-        Returns:
-            test_accuracy (list) - list of tuples specifying index and cumulative score
-        """
-
-        step = int(self.dataset.window_size / n)
-
-        print(f"DETECTION WINDOW IDX: {self.detection_window_idx}")
-
-        window_start = self.dataset.get_split_idx(
-            window_idx=(self.detection_window_idx - 1)
-        )
-        print(f"WINDOW_START: {window_start}")
-
-        test_scores = []
-        idx = window_start + step
-
-        for _ in range(n):
-            X_test, y_test = self.dataset.get_cumulative_data(idx, split_labels=True)
-            test_accuracy = self.trained_model.score(X_test, y_test)
-            test_scores.append((idx, test_accuracy))
-            idx += step
-
-        return test_scores
-
-    def evaluate_model_incremental_RIVER(self, n):
-        """
-        Evaluates the saved model in a incremental/cumulative manner by incrementally scoring the model
-        every k observations in the 'detection' window. K is dermined by specifying the total number
-        of equally spaced evaluation points (n) desired within the window.
-
-        Args:
             n (int) - number of splits within a window to log scores for
 
         Returns:
@@ -218,7 +186,7 @@ class Experiment:
             if i > self.reference_window_idx:
 
                 self.experiment_metrics["scores"].extend(
-                    self.evaluate_model_incremental_RIVER(n=10)
+                    self.evaluate_model_incremental(n=10)
                 )
                 self.update_detection_window()
 
@@ -240,7 +208,7 @@ class Experiment:
             if i > self.reference_window_idx:
 
                 self.experiment_metrics["scores"].extend(
-                    self.evaluate_model_incremental_RIVER(n=10)
+                    self.evaluate_model_incremental(n=10)
                 )
 
                 self.update_reference_window()
