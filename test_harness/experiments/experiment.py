@@ -124,7 +124,6 @@ class Experiment:
             for yt, yp in zip(y_test, y_pred):
                 self.incremental_metric.update(yt, yp)
 
-            #             test_accuracy = self.trained_model.score(X_test, y_test)
             test_scores.append((idx, self.incremental_metric.get()))
 
             idx += step
