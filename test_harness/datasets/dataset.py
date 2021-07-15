@@ -56,30 +56,6 @@ class Dataset:
         else:
             return window_data
 
-    def get_cumulative_data(self, idx, split_labels=True):
-        """
-        Given an index into the full_df, return all records up to that observation.
-
-        Args:
-            idx (int) - index corresponding to the row in full_df
-            split_labels (bool) - return features and labels separately vs. as one dataframe
-
-        Returns:
-            features (pd.DataFrame)
-            labels (pd.Series)
-
-        TO-DO: should this skip over the first full window that was trained on.. meaning eval data only?
-
-        """
-
-        window_data = self.full_df[:idx]
-
-        if split_labels:
-            features, labels = self.split_df(window_data, self.column_mapping["target"])
-            return features, labels
-        else:
-            return window_data
-
     def get_data_by_idx(self, start_idx, end_idx, split_labels=True):
         """
         Given an index into the full_df, return all records up to that observation.
