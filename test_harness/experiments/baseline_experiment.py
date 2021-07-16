@@ -9,7 +9,7 @@ from sklearn.preprocessing import MinMaxScaler
 
 from test_harness.experiments.base_experiment import Experiment
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("baseline")
 logger.setLevel(logging.DEBUG)
 
 formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -201,7 +201,7 @@ class BaselineExperiment(Experiment):
             - Repeat until finished
 
         """
-        logger.info(f"Started Run")
+        logger.info(f"Started Baseline Run")
         self.train_model(window="reference")
 
         for i, split in enumerate(self.dataset.splits):
