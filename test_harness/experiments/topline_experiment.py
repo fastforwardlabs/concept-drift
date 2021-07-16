@@ -2,7 +2,7 @@ import logging
 
 from test_harness.experiments.baseline_experiment import BaselineExperiment
 
-logger = logging.getLogger("topline")
+logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
