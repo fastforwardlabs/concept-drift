@@ -140,16 +140,18 @@ class BaselineExperiment(Experiment):
                 window_start, window_end, split_labels=True
             )
 
-            logger.info(
-                f"Reference Evaluation in Window Start: {window_start} - {window_end} | {i+1}/{n}"
-            )
-
             y_pred = self.trained_model.predict(X_test)
 
             for yt, yp in zip(y_test, y_pred):
                 self.incremental_metric.update(yt, yp)
 
-            test_scores.append((window_end, self.incremental_metric.get()))
+            inc_score = round(self.incremental_metric.get(), 4)
+
+            test_scores.append((window_end, inc_score))
+
+            logger.info(
+                f"Evaluated Model at Window Increment: {window_start} - {window_end} | {i+1}/{n} | {inc_score}"
+            )
 
             window_start += step
             window_end += step
