@@ -17,6 +17,7 @@ logger.addHandler(file_handler)
 class ToplineExperiment(BaselineExperiment):
     def __init__(self, model, dataset):
         super().__init__(model, dataset)
+        self.name = "topline"
 
     def run(self):
         """The Topline Experiment retrains a model on each incremental reference window.
