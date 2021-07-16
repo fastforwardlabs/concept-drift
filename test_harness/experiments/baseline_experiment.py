@@ -1,4 +1,5 @@
 import time
+import logging
 from collections import defaultdict
 
 import pandas as pd
@@ -7,6 +8,17 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import MinMaxScaler
 
 from test_harness.experiments.base_experiment import Experiment
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+
+file_handler = logging.FileHandler("../logs/app.log")
+file_handler.setLevel(logging.DEBUG)
+file_handler.setFormatter(formatter)
+
+logger.addHandler(file_handler)
 
 
 class BaselineExperiment(Experiment):
@@ -50,6 +62,7 @@ class BaselineExperiment(Experiment):
         X_train, y_train = self.dataset.get_window_data(window_idx, split_labels=True)
 
         # fit model
+        logger.info(f"Trained Model at Index: {window_idx}")
         start_time = time.time()
         self.trained_model = pipe.fit(X_train, y_train)
         end_time = time.time()
@@ -86,9 +99,14 @@ class BaselineExperiment(Experiment):
             if window == "reference"
             else self.detection_window_idx
         )
+
         X_test, y_test = self.dataset.get_window_data(window_idx, split_labels=True)
 
         test_accuracy = self.trained_model.score(X_test, y_test)
+
+        logger.info(
+            f"Evaluated Model in Aggregate on {window} Window: {window_idx} | Score: {test_accuracy}"
+        )
 
         return test_accuracy
 
@@ -107,19 +125,22 @@ class BaselineExperiment(Experiment):
 
         step = int(self.dataset.window_size / n)
 
-        print(f"DETECTION WINDOW IDX: {self.detection_window_idx}")
-
         window_start = self.dataset.get_split_idx(
             window_idx=(self.detection_window_idx - 1)
         )
-        print(f"WINDOW_START: {window_start}")
+
+        logger.info(f"Reference Evaluation at Window Start: {window_start}")
 
         test_scores = []
-        idx = window_start + step  # get window end
+        window_end = window_start + step  # get window end
 
-        for _ in range(n):
+        for i in range(n):
             X_test, y_test = self.dataset.get_data_by_idx(
-                window_start, idx, split_labels=True
+                window_start, window_end, split_labels=True
+            )
+
+            logger.info(
+                f"Reference Evaluation in Window Start: {window_start} - {window_end} | {i+1}/{n}"
             )
 
             y_pred = self.trained_model.predict(X_test)
@@ -127,14 +148,17 @@ class BaselineExperiment(Experiment):
             for yt, yp in zip(y_test, y_pred):
                 self.incremental_metric.update(yt, yp)
 
-            test_scores.append((idx, self.incremental_metric.get()))
+            test_scores.append((window_end, self.incremental_metric.get()))
 
-            idx += step
+            window_start += step
+            window_end += step
 
         return test_scores
 
     def calculate_label_expense(self):
         """A postprocessing step to aggregate and save label expense metrics"""
+
+        logger.info(f"Calculating Label Expense")
 
         num_labels_requested = sum(
             [
@@ -153,6 +177,8 @@ class BaselineExperiment(Experiment):
 
     def calculate_train_expense(self):
         """A postprocessing step to aggregate and save training expense metrics"""
+
+        logger.info(f"Calculating Train Expense")
 
         total_train_time = sum(
             [
@@ -175,6 +201,7 @@ class BaselineExperiment(Experiment):
             - Repeat until finished
 
         """
+        logger.info(f"Started Run")
         self.train_model(window="reference")
 
         for i, split in enumerate(self.dataset.splits):
