@@ -166,12 +166,15 @@ class BaselineExperiment(Experiment):
     def run(self):
         """The Baseline Experiment simply trains a model on the initial reference window
         and then evaluates on each incremental detection window with NO retraining.
-        - Train on initial window
-        - Evaluate on detection window
-        - Update detection window
-        - Repeat until finished
-        """
 
+        This serves as the least accurate scenario and should incur minimal label cost at the expense
+        of accuracy.
+            - Train on initial window
+            - Evaluate on detection window
+            - Update detection window
+            - Repeat until finished
+
+        """
         self.train_model(window="reference")
 
         for i, split in enumerate(self.dataset.splits):
@@ -182,32 +185,6 @@ class BaselineExperiment(Experiment):
                     self.evaluate_model_incremental(n=10)
                 )
                 self.update_detection_window()
-
-        self.calculate_label_expense()
-        self.calculate_train_expense()
-
-    def run_topline(self):
-        """The Topline Experiment retrains a model on each incremental reference window
-        - Train on initial window
-        - Evaluate on detection window
-        - Update reference window and retrain
-        - Repeat until finished
-        """
-
-        self.train_model(window="reference")
-
-        for i, split in enumerate(self.dataset.splits):
-
-            if i > self.reference_window_idx:
-
-                self.experiment_metrics["scores"].extend(
-                    self.evaluate_model_incremental(n=10)
-                )
-
-                self.update_reference_window()
-                self.update_detection_window()
-
-                self.train_model(window="reference")
 
         self.calculate_label_expense()
         self.calculate_train_expense()
