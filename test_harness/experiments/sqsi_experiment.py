@@ -1,11 +1,10 @@
 import logging
-from time import perf_counter
 
 import numpy as np
-from scipy.stats import ks_2samp
+from scipy.stats import ks_2samp, describe
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import MinMaxScaler
-from sklearn.model_selection import StratifiedKFold
+from sklearn.model_selection import StratifiedKFold, LeaveOneOut
 
 from test_harness.experiments.baseline_experiment import BaselineExperiment
 
@@ -29,7 +28,7 @@ class SQSI_MRExperiment(BaselineExperiment):
         self.significance_thresh = significance_thresh
 
     @staticmethod
-    def make_kfold_predictions(X, y, k, model):
+    def make_kfold_predictions(X, y, model, k=10):
         """A KFold version of LeaveOneOut predictions.
 
         Rather than performing exhaustive leave-one-out methodology to get predictions
@@ -42,6 +41,7 @@ class SQSI_MRExperiment(BaselineExperiment):
             X (pd.Dataframe) - features in evaluation window
             y (pd.Series) - labels in evaluation window
             k (int) - number of folds
+            type (str) - specified kfold or LeaveOneOut split methodology
 
         Returns:
             preds (np.array) - an array of predictions for each X in the input (NOT IN ORDER OF INPUT)
@@ -49,16 +49,26 @@ class SQSI_MRExperiment(BaselineExperiment):
         """
         # NOTE - need to think through if this should be a pipeline with MinMaxScaler...???
 
-        skf = StratifiedKFold(n_splits=k, random_state=42, shuffle=True)
+        splitter = StratifiedKFold(n_splits=k, random_state=42, shuffle=True)
+        # splitter = LeaveOneOut()
+
+        print(splitter)
 
         preds = np.array([])
-        for train_indicies, test_indicies in skf.split(X, y):
+        for train_indicies, test_indicies in splitter.split(X, y):
+
+            pipe = Pipeline(
+                steps=[
+                    ("scaler", MinMaxScaler()),
+                    ("clf", model),
+                ]
+            )
 
             # fit it
-            model.fit(X.iloc[train_indicies], y.iloc[train_indicies])
+            pipe.fit(X.iloc[train_indicies], y.iloc[train_indicies])
 
             # score it on this Kfold's test data
-            y_preds_split = model.predict_proba(X.iloc[test_indicies])
+            y_preds_split = pipe.predict_proba(X.iloc[test_indicies])
             y_preds_split_posclass_proba = y_preds_split[:, 1]
 
             preds = np.append(preds, y_preds_split_posclass_proba)
@@ -72,7 +82,7 @@ class SQSI_MRExperiment(BaselineExperiment):
         X_train, y_train = self.dataset.get_window_data(window_idx, split_labels=True)
 
         # perform kfoldsplits to get predictions
-        preds = self.make_kfold_predictions(X_train, y_train, self.k, self.model)
+        preds = self.make_kfold_predictions(X_train, y_train, self.model, self.k)
 
         return preds
 
@@ -129,6 +139,10 @@ class SQSI_MRExperiment(BaselineExperiment):
                     ref_response_dist = self.get_reference_response_distribution()
                 det_response_dist = self.get_detection_response_distribution()
 
+                logger.info(
+                    f"REFERENCE STATS: {describe(ref_response_dist)} | DETECTION STATS: {describe(det_response_dist)}"
+                )
+
                 # compare distributions
                 ks_result = self.perform_ks_test(
                     dist1=ref_response_dist, dist2=det_response_dist
@@ -137,8 +151,8 @@ class SQSI_MRExperiment(BaselineExperiment):
                 logger.info(f"KS Test: {ks_result}")
 
                 if ks_result[1] < self.significance_thresh:
-                    # reject null hyp, distributions are NOT identical
-                    self.train_model(window="reference")
+                    # reject null hyp, distributions are NOT identical --> retrain
+                    self.train_model(window="detection")
                     self.update_reference_window()
                     CALC_REF_RESPONSE = True
                 else:
