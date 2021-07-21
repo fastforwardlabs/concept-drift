@@ -1,4 +1,5 @@
 import pandas as pd
+import matplotlib.pyplot as plt
 
 
 def format_experimental_scores(experiment):
@@ -19,10 +20,19 @@ def plot_experiment_error(experiment):
     )
 
 
-def plot_multiple_experiments(experiments):
+def plot_multiple_experiments(experiments, change_points=None):
 
     exp_dfs = [format_experimental_scores(experiment) for experiment in experiments]
 
-    return pd.concat(exp_dfs, axis=1).plot(
+    ax = pd.concat(exp_dfs, axis=1).plot(
         figsize=(15, 7), title="Overall Score by Experiment"
     )
+
+    if change_points:
+        [
+            ax.axvline(i, color="black", linestyle=":", linewidth=0.75)
+            for i in change_points
+            if i != 0
+        ]
+
+    plt.show()
