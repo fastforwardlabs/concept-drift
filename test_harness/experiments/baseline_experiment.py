@@ -106,6 +106,7 @@ class BaselineExperiment(Experiment):
 
         # to help ensure we don't overfit, we perform GridsearchCV eachtime a new
         # model is fit on the reference window since this is how it would be done in prod
+        # vs. blindly fitting with fixed hyperparameters
         if gscv:
             if self.param_grid is None:
                 raise AttributeError("Training with GSCV, but no param_grid provided.")
@@ -126,8 +127,7 @@ class BaselineExperiment(Experiment):
             train_time = gs.refit_time_
             eval_score = gs.cv_results_["mean_train_score"][gs.best_index_]
             gscv_test_score = gs.best_score_
-
-            logger.info(f"GSCV Best Params: {gs.best_params_}")
+            best_params = gs.best_params_
 
         else:
 
@@ -140,8 +140,10 @@ class BaselineExperiment(Experiment):
             # train evaluation
             eval_score = self.evaluate_model_aggregate(window=window)
             gscv_test_score = None
+            best_params = None
 
         logger.info(f"Trained Model at Index: {window_idx} | GridsearchCV: {gscv}")
+        logger.info(f"GSCV Best Params: {best_params}")
         logger.info(f"Train Score: {eval_score} | GSCV Test Score: {gscv_test_score}")
 
         # save metrics
@@ -241,7 +243,9 @@ class BaselineExperiment(Experiment):
                 for train_run in self.experiment_metrics["training"]
             ]
         )
-        percent_total_labels = num_labels_requested / len(self.dataset.full_df)
+        percent_total_labels = round(
+            num_labels_requested / len(self.dataset.full_df), 4
+        )
 
         label_metrics = {
             "num_labels_requested": num_labels_requested,
@@ -250,19 +254,26 @@ class BaselineExperiment(Experiment):
 
         self.experiment_metrics["label_expense"] = label_metrics
 
+        logger.info(f"Label Metrics: {label_metrics}")
+
     def calculate_train_expense(self):
         """A postprocessing step to aggregate and save training expense metrics"""
 
         logger.info(f"Calculating Train Expense")
 
-        total_train_time = sum(
-            [
-                train_run["train_time"]
-                for train_run in self.experiment_metrics["training"]
-            ]
+        total_train_time = round(
+            sum(
+                [
+                    train_run["train_time"]
+                    for train_run in self.experiment_metrics["training"]
+                ]
+            ),
+            2,
         )
 
         self.experiment_metrics["total_train_time"] = total_train_time
+
+        logger.info(f"Train Metrics: {total_train_time}")
 
     def run(self):
         """The Baseline Experiment simply trains a model on the initial reference window

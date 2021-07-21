@@ -29,7 +29,7 @@ class ToplineExperiment(BaselineExperiment):
             - Repeat until finished
 
         """
-        logger.info(f"Started Topline Run")
+        logger.info(f"-------------------- Started Topline Run --------------------")
         self.train_model_gscv(window="reference", gscv=True)
 
         for i, split in enumerate(self.dataset.splits):
