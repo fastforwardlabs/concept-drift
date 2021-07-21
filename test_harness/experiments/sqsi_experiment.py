@@ -21,14 +21,17 @@ logger.addHandler(file_handler)
 
 
 class SQSI_MRExperiment(BaselineExperiment):
-    def __init__(self, model, dataset, k, significance_thresh):
-        super().__init__(model, dataset)
+    def __init__(self, model, dataset, k, significance_thresh, param_grid=None):
+        super().__init__(model, dataset, param_grid)
         self.name = "sqsi-mr"
         self.k = k
         self.significance_thresh = significance_thresh
+        self.ref_distributions = []
+        self.det_distributions = []
+        self.p_vals = []
 
     @staticmethod
-    def make_kfold_predictions(X, y, model, k=10):
+    def make_kfold_predictions(X, y, model, k):
         """A KFold version of LeaveOneOut predictions.
 
         Rather than performing exhaustive leave-one-out methodology to get predictions
@@ -51,8 +54,6 @@ class SQSI_MRExperiment(BaselineExperiment):
 
         splitter = StratifiedKFold(n_splits=k, random_state=42, shuffle=True)
         # splitter = LeaveOneOut()
-
-        print(splitter)
 
         preds = np.array([])
         for train_indicies, test_indicies in splitter.split(X, y):
@@ -116,8 +117,10 @@ class SQSI_MRExperiment(BaselineExperiment):
                 - If from same distribution, update detection window and repeat
 
         """
-        logger.info(f"Started SQSI Model Replacement Run")
-        self.train_model(window="reference")
+        logger.info(
+            f"-------------------- Started SQSI Model Replacement Run --------------------"
+        )
+        self.train_model_gscv(window="reference", gscv=True)
 
         CALC_REF_RESPONSE = True
 
@@ -139,26 +142,38 @@ class SQSI_MRExperiment(BaselineExperiment):
                     ref_response_dist = self.get_reference_response_distribution()
                 det_response_dist = self.get_detection_response_distribution()
 
-                logger.info(
-                    f"REFERENCE STATS: {describe(ref_response_dist)} | DETECTION STATS: {describe(det_response_dist)}"
-                )
+                logger.info(f"REFERENCE STATS: {describe(ref_response_dist)}")
+                logger.info(f"DETECTION STATS: {describe(det_response_dist)}")
+
+                print(f"Dataset Split: {i}")
+                print(f"REFERENCE STATS: {describe(ref_response_dist)}")
+                print(f"DETECTION STATS: {describe(det_response_dist)}")
+
+                self.ref_distributions.append(ref_response_dist)
+                self.det_distributions.append(det_response_dist)
 
                 # compare distributions
                 ks_result = self.perform_ks_test(
                     dist1=ref_response_dist, dist2=det_response_dist
                 )
+                self.p_vals.append(ks_result.pvalue)
 
                 logger.info(f"KS Test: {ks_result}")
 
                 if ks_result[1] < self.significance_thresh:
                     # reject null hyp, distributions are NOT identical --> retrain
-                    self.train_model(window="detection")
+                    self.train_model_gscv(window="detection", gscv=True)
                     self.update_reference_window()
                     CALC_REF_RESPONSE = True
+                    _ks_result_report = "FAILED"
                 else:
                     CALC_REF_RESPONSE = False
+                    _ks_result_report = "PASSED"
 
                 self.update_detection_window()
+
+                print(f"KS Test Result: {_ks_result_report} | {ks_result}")
+                print()
 
         self.calculate_label_expense()
         self.calculate_train_expense()
