@@ -1,4 +1,6 @@
+import numpy as np
 import pandas as pd
+import seaborn as sns
 import matplotlib.pyplot as plt
 
 
@@ -34,7 +36,6 @@ def plot_multiple_experiments(experiments, change_points=None):
             for i in change_points
             if i != 0
         ]
-
     plt.show()
 
 
@@ -56,3 +57,22 @@ def aggregate_experiment_metrics(experiments):
 
     return pd.DataFrame(metrics).set_index("experiment")
 
+
+def plot_response_distributions_bysplit(sqsi_exp):
+
+    df = pd.DataFrame()
+
+    for i in range(len(sqsi_exp.ref_distributions)):
+        dists = pd.DataFrame(
+            np.stack([sqsi_exp.ref_distributions[i], sqsi_exp.det_distributions[i]]).T,
+            columns=["Reference", "Detection"],
+        )
+        dists["Split"] = i
+
+        df = df.append(dists)
+
+    df_melt = df.melt(id_vars=["Split"], var_name="Window Type")
+
+    g = sns.FacetGrid(df_melt, col="Split", hue="Window Type", col_wrap=4)
+    g.map_dataframe(sns.kdeplot, "value", fill=True)
+    g.add_legend()
