@@ -36,3 +36,23 @@ def plot_multiple_experiments(experiments, change_points=None):
         ]
 
     plt.show()
+
+
+def aggregate_experiment_metrics(experiments):
+
+    metrics = []
+    for exp in experiments:
+
+        metrics.append(
+            {
+                "experiment": exp.name,
+                "times_retrained": len(exp.experiment_metrics["training"]),
+                "percent_total_labels": exp.experiment_metrics["label_expense"][
+                    "percent_total_labels"
+                ],
+                "total_train_time": exp.experiment_metrics["total_train_time"],
+            }
+        )
+
+    return pd.DataFrame(metrics).set_index("experiment")
+
