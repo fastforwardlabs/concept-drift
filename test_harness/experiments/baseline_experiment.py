@@ -6,6 +6,7 @@ import pandas as pd
 from river import metrics
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import MinMaxScaler
+from sklearn.model_selection import GridSearchCV
 
 from test_harness.experiments.base_experiment import Experiment
 
@@ -22,7 +23,7 @@ logger.addHandler(file_handler)
 
 
 class BaselineExperiment(Experiment):
-    def __init__(self, model, dataset):
+    def __init__(self, model, dataset, param_grid=None):
 
         self.name = "baseline"
         self.dataset = dataset
@@ -32,6 +33,8 @@ class BaselineExperiment(Experiment):
         self.detection_window_idx = 1
         self.experiment_metrics = defaultdict(list)
         self.incremental_metric = metrics.Accuracy()
+        self.metric = "accuracy"
+        self.param_grid = param_grid
 
     def update_reference_window(self, split_idx=None):
         """Increments reference window by 1 index, unless split_idx is provided,
@@ -79,6 +82,75 @@ class BaselineExperiment(Experiment):
             "num_train_examples": len(y_train),
             "train_time": train_time,
             "eval_score": eval_score,
+        }
+        self.experiment_metrics["training"].append(metrics)
+
+    def train_model_gscv(self, window="reference", gscv=False):
+        """Trains model on specified window and updates 'trained_model' attribute."""
+
+        # gather training data
+        window_idx = (
+            self.reference_window_idx
+            if window == "reference"
+            else self.detection_window_idx
+        )
+        X_train, y_train = self.dataset.get_window_data(window_idx, split_labels=True)
+
+        # instantiate training pipeline
+        pipe = Pipeline(
+            steps=[
+                ("scaler", MinMaxScaler()),
+                ("clf", self.model),
+            ]
+        )
+
+        # to help ensure we don't overfit, we perform GridsearchCV eachtime a new
+        # model is fit on the reference window since this is how it would be done in prod
+        if gscv:
+            if self.param_grid is None:
+                raise AttributeError("Training with GSCV, but no param_grid provided.")
+
+            gs = GridSearchCV(
+                estimator=pipe,
+                param_grid=self.param_grid,
+                cv=5,
+                scoring=self.metric,
+                n_jobs=-1,
+                refit=True,
+                return_train_score=True,
+            )
+
+            gs.fit(X_train, y_train)
+
+            self.trained_model = gs.best_estimator_
+            train_time = gs.refit_time_
+            eval_score = gs.cv_results_["mean_train_score"][gs.best_index_]
+            gscv_test_score = gs.best_score_
+
+            logger.info(f"GSCV Best Params: {gs.best_params_}")
+
+        else:
+
+            # fit model
+            start_time = time.time()
+            self.trained_model = pipe.fit(X_train, y_train)
+            end_time = time.time()
+            train_time = end_time - start_time
+
+            # train evaluation
+            eval_score = self.evaluate_model_aggregate(window=window)
+            gscv_test_score = None
+
+        logger.info(f"Trained Model at Index: {window_idx} | GridsearchCV: {gscv}")
+        logger.info(f"Train Score: {eval_score} | GSCV Test Score: {gscv_test_score}")
+
+        # save metrics
+        metrics = {
+            "window_idx": window_idx,
+            "num_train_examples": len(y_train),
+            "train_time": train_time,
+            "eval_score": eval_score,
+            "gscv_test_score": gscv_test_score,
         }
         self.experiment_metrics["training"].append(metrics)
 
@@ -204,8 +276,8 @@ class BaselineExperiment(Experiment):
             - Repeat until finished
 
         """
-        logger.info(f"Started Baseline Run")
-        self.train_model(window="reference")
+        logger.info(f"-------------------- Started Baseline Run --------------------")
+        self.train_model_gscv(window="reference", gscv=True)
 
         for i, split in enumerate(self.dataset.splits):
 

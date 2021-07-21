@@ -15,8 +15,8 @@ logger.addHandler(file_handler)
 
 
 class ToplineExperiment(BaselineExperiment):
-    def __init__(self, model, dataset):
-        super().__init__(model, dataset)
+    def __init__(self, model, dataset, param_grid=None):
+        super().__init__(model, dataset, param_grid)
         self.name = "topline"
 
     def run(self):
@@ -30,7 +30,7 @@ class ToplineExperiment(BaselineExperiment):
 
         """
         logger.info(f"Started Topline Run")
-        self.train_model(window="reference")
+        self.train_model_gscv(window="reference", gscv=True)
 
         for i, split in enumerate(self.dataset.splits):
 
@@ -43,7 +43,7 @@ class ToplineExperiment(BaselineExperiment):
                 self.update_reference_window()
                 self.update_detection_window()
 
-                self.train_model(window="reference")
+                self.train_model_gscv(window="reference", gscv=True)
 
         self.calculate_label_expense()
         self.calculate_train_expense()
