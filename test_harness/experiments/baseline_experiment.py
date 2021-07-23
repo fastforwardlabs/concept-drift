@@ -5,7 +5,8 @@ from collections import defaultdict
 import pandas as pd
 from river import metrics
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from sklearn.model_selection import GridSearchCV
 
 from test_harness.experiments.base_experiment import Experiment
@@ -96,10 +97,26 @@ class BaselineExperiment(Experiment):
         )
         X_train, y_train = self.dataset.get_window_data(window_idx, split_labels=True)
 
+        # create column transformer
+        column_transformer = ColumnTransformer(
+            [
+                (
+                    "continuous",
+                    StandardScaler(),
+                    self.dataset.column_mapping["numerical_features"],
+                ),
+                (
+                    "categorical",
+                    "passthrough",
+                    self.dataset.column_mapping["categorical_features"],
+                ),
+            ]
+        )
+
         # instantiate training pipeline
         pipe = Pipeline(
             steps=[
-                ("scaler", MinMaxScaler()),
+                ("scaler", column_transformer),
                 ("clf", self.model),
             ]
         )
