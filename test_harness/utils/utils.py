@@ -1,3 +1,4 @@
+import scipy
 import numpy as np
 import pandas as pd
 import seaborn as sns
@@ -76,6 +77,7 @@ def aggregate_experiment_metrics(experiments):
 
 
 def plot_response_distributions_bysplit(sqsi_exp):
+    """Utility for UncertaintyKSExperiment"""
 
     df = pd.DataFrame()
 
@@ -95,7 +97,56 @@ def plot_response_distributions_bysplit(sqsi_exp):
     g.add_legend()
 
 
-def calculate_distances_window_distances(experiment, distance_func):
+def plot_margin_distributions_bysplit(margin_exp):
+    """Utility for UncertaintyX2Experiment"""
+
+    for i in range(len(margin_exp.ref_margins)):
+
+        ref_margin_ex = margin_exp.ref_margins[i]
+        det_margin_ex = margin_exp.det_margins[i]
+
+        # plot margin distributions
+        ax = pd.DataFrame(
+            np.vstack((ref_margin_ex, det_margin_ex)).T,
+            columns=["Reference", "Detection"],
+        ).plot(kind="kde")
+
+        ax.axvline(
+            margin_exp.margin_width, color="black", linestyle=":", linewidth=0.75
+        )
+
+        ref_uncertainties = (ref_margin_ex < margin_exp.margin_width).astype(int)
+        det_uncertainties = (det_margin_ex < margin_exp.margin_width).astype(int)
+
+        expected = pd.Series(ref_uncertainties).value_counts(normalize=False).tolist()
+        observed = pd.Series(det_uncertainties).value_counts(normalize=False).tolist()
+
+        expected_norm = (
+            pd.Series(ref_uncertainties).value_counts(normalize=True).tolist()
+        )
+        observed_norm = (
+            pd.Series(det_uncertainties).value_counts(normalize=True).tolist()
+        )
+
+        pct_change_in_margin = round(
+            (np.absolute(expected_norm[1] - observed_norm[1]) / expected_norm[1]), 4
+        )
+
+        x2_test = scipy.stats.chisquare(f_obs=observed, f_exp=expected)
+
+        same_dist = True if x2_test[1] > 0.001 else False
+        print(f"Same Distribution: {same_dist}")
+        print(f"Expected Distribution: {expected_norm}")
+        print(f"Observed Distribution: {observed_norm}")
+        print(f"Percent change in margin: {pct_change_in_margin}")
+        print(
+            f"Number in Margin: Before {expected[1]} | After {observed[1]} | Difference {expected[1]-observed[1]}"
+        )
+        print(f"Chi-Square Results: {x2_test}")
+        print()
+
+
+def calculate_split_window_distances(experiment, distance_func):
 
     splits = []
 
