@@ -20,10 +20,10 @@ file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
 
 
-class SQSI_MRExperiment(BaselineExperiment):
+class UncertaintyKSExperiment(BaselineExperiment):
     def __init__(self, model, dataset, k, significance_thresh, param_grid=None):
         super().__init__(model, dataset, param_grid)
-        self.name = "sqsi-mr"
+        self.name = "uncertainty-ks"
         self.k = k
         self.significance_thresh = significance_thresh
         self.ref_distributions = []
@@ -71,8 +71,10 @@ class SQSI_MRExperiment(BaselineExperiment):
             # score it on this Kfold's test data
             y_preds_split = pipe.predict_proba(X.iloc[test_indicies])
             y_preds_split_posclass_proba = y_preds_split[:, 1]
-
+            print(f"Shape of k-fold preds: {preds.shape}")
             preds = np.append(preds, y_preds_split_posclass_proba)
+
+        print(f"FINAL SHAPE kfold preds: {preds.shape}")
 
         return preds
 
@@ -80,6 +82,7 @@ class SQSI_MRExperiment(BaselineExperiment):
 
         # get data in reference window
         window_idx = self.reference_window_idx
+        print(f"GETTING REFERENCE DISTRIBUTION FOR WINDOW: {window_idx}")
         X_train, y_train = self.dataset.get_window_data(window_idx, split_labels=True)
 
         # perform kfoldsplits to get predictions
@@ -91,6 +94,7 @@ class SQSI_MRExperiment(BaselineExperiment):
 
         # get data in prediction window
         window_idx = self.detection_window_idx
+        print(f"GETTING DETECTION DISTRIBUTION FOR WINDOW: {window_idx}")
         X_test, y_test = self.dataset.get_window_data(window_idx, split_labels=True)
 
         # use trained model to get response distribution
@@ -103,16 +107,16 @@ class SQSI_MRExperiment(BaselineExperiment):
         return ks_2samp(dist1, dist2)
 
     def run(self):
-        """SQSI Model Replacement Experiment
+        """Response Uncertainty Experiment
 
         This experiment uses a KS test to detect changes in the target/response distribution between
         the reference and detection windows.
 
         Logic flow:
             - Train on initial reference window
-            - Perform Stratified LeaveOneOut/KFold to obtain prediction distribution on reference window
+            - Perform Stratified KFold to obtain prediction distribution on reference window
             - Use trained model to generate predictions on detection window
-            - Perform statistical test between reference and detection window response distributions
+            - Perform statistical test (KS) between reference and detection window response distributions
                 - If different, retrain and update both windows
                 - If from same distribution, update detection window and repeat
 
@@ -127,6 +131,7 @@ class SQSI_MRExperiment(BaselineExperiment):
         for i, split in enumerate(self.dataset.splits):
 
             if i > self.reference_window_idx:
+                print(f"Dataset index of split end: {self.dataset.splits[i]}")
 
                 logger.info(
                     f"Need to calculate Reference response distribution? - {CALC_REF_RESPONSE}"
