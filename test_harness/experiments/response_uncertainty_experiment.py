@@ -3,7 +3,8 @@ import logging
 import numpy as np
 from scipy.stats import ks_2samp, describe
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from sklearn.model_selection import StratifiedKFold, LeaveOneOut
 
 from test_harness.experiments.baseline_experiment import BaselineExperiment
@@ -31,7 +32,7 @@ class UncertaintyKSExperiment(BaselineExperiment):
         self.p_vals = []
 
     @staticmethod
-    def make_kfold_predictions(X, y, model, k):
+    def make_kfold_predictions(X, y, model, dataset, k):
         """A KFold version of LeaveOneOut predictions.
 
         Rather than performing exhaustive leave-one-out methodology to get predictions
@@ -58,9 +59,26 @@ class UncertaintyKSExperiment(BaselineExperiment):
         preds = np.array([])
         for train_indicies, test_indicies in splitter.split(X, y):
 
+            # create column transformer
+            column_transformer = ColumnTransformer(
+                [
+                    (
+                        "continuous",
+                        StandardScaler(),
+                        dataset.column_mapping["numerical_features"],
+                    ),
+                    (
+                        "categorical",
+                        "passthrough",
+                        dataset.column_mapping["categorical_features"],
+                    ),
+                ]
+            )
+
+            # instantiate training pipeline
             pipe = Pipeline(
                 steps=[
-                    ("scaler", MinMaxScaler()),
+                    ("scaler", column_transformer),
                     ("clf", model),
                 ]
             )
@@ -71,7 +89,6 @@ class UncertaintyKSExperiment(BaselineExperiment):
             # score it on this Kfold's test data
             y_preds_split = pipe.predict_proba(X.iloc[test_indicies])
             y_preds_split_posclass_proba = y_preds_split[:, 1]
-            print(f"Shape of k-fold preds: {preds.shape}")
             preds = np.append(preds, y_preds_split_posclass_proba)
 
         print(f"FINAL SHAPE kfold preds: {preds.shape}")
@@ -86,7 +103,9 @@ class UncertaintyKSExperiment(BaselineExperiment):
         X_train, y_train = self.dataset.get_window_data(window_idx, split_labels=True)
 
         # perform kfoldsplits to get predictions
-        preds = self.make_kfold_predictions(X_train, y_train, self.model, self.k)
+        preds = self.make_kfold_predictions(
+            X_train, y_train, self.model, self.dataset, self.k
+        )
 
         return preds
 

@@ -4,7 +4,8 @@ import numpy as np
 import pandas as pd
 from scipy.stats import ks_2samp, chisquare
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from sklearn.model_selection import StratifiedKFold, LeaveOneOut
 
 from test_harness.experiments.baseline_experiment import BaselineExperiment
@@ -37,7 +38,7 @@ class UncertaintyX2Experiment(BaselineExperiment):
         self.margin_width = margin_width
 
     @staticmethod
-    def make_kfold_predictions(X, y, model, k):
+    def make_kfold_predictions(X, y, model, dataset, k):
         """A KFold version of LeaveOneOut predictions.
 
         Rather than performing exhaustive leave-one-out methodology to get predictions
@@ -64,9 +65,26 @@ class UncertaintyX2Experiment(BaselineExperiment):
 
         for train_indicies, test_indicies in splitter.split(X, y):
 
+            # create column transformer
+            column_transformer = ColumnTransformer(
+                [
+                    (
+                        "continuous",
+                        StandardScaler(),
+                        dataset.column_mapping["numerical_features"],
+                    ),
+                    (
+                        "categorical",
+                        "passthrough",
+                        dataset.column_mapping["categorical_features"],
+                    ),
+                ]
+            )
+
+            # instantiate training pipeline
             pipe = Pipeline(
                 steps=[
-                    ("scaler", MinMaxScaler()),
+                    ("scaler", column_transformer),
                     ("clf", model),
                 ]
             )
@@ -96,9 +114,11 @@ class UncertaintyX2Experiment(BaselineExperiment):
         print(f"GETTING REFERENCE DISTRIBUTION FOR WINDOW: {window_idx}")
         X_train, y_train = self.dataset.get_window_data(window_idx, split_labels=True)
 
+        print(f"SELF MODEL: {self.model}")
+
         # perform kfoldsplits to get predictions
         preds, pred_margins = self.make_kfold_predictions(
-            X_train, y_train, self.model, self.k
+            X_train, y_train, self.model, self.dataset, self.k
         )
 
         return preds, pred_margins
