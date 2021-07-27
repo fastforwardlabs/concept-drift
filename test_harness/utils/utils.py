@@ -69,6 +69,7 @@ def aggregate_experiment_metrics(experiments):
                 "percent_total_labels": exp.experiment_metrics["label_expense"][
                     "percent_total_labels"
                 ],
+                "cumulative_accuracy": exp.experiment_metrics["scores"][-1][1],
                 "total_train_time": exp.experiment_metrics["total_train_time"],
             }
         )
