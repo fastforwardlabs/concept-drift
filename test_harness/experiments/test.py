@@ -14,7 +14,7 @@ from test_harness.utils.utils import plot_experiment_error, plot_multiple_experi
 from test_harness.datasets.dataset import Dataset
 from test_harness.experiments.baseline_experiment import BaselineExperiment
 from test_harness.experiments.topline_experiment import ToplineExperiment
-from test_harness.experiments.sqsi_experiment import SQSI_MRExperiment
+#from test_harness.experiments.sqsi_experiment import SQSI_MRExperiment
 from test_harness.experiments.md3_experiment import MD3_Experiment
 
 data = pd.read_csv("../../data/electricity-normalized.csv")
@@ -72,7 +72,8 @@ topline.run()
 
 #plot_experiment_error(baseline)
 #plot_experiment_error(topline)
-svc = SVC(kernel='linear', C=10.0, random_state=42)
-X_train, y_train = ED_dataset.get_window_data(window_idx=0, split_labels=True)
-md3 = MD3_Experiment(model=svc, dataset=ED_dataset)
+svc = SVC(kernel='linear', random_state=42)
+#X_train, y_train = ED_dataset.get_window_data(window_idx=0, split_labels=True)
+param_grid = [{'C': [0.001, 0.01, 0.1, 1.0, 10.0]}]
+md3 = MD3_Experiment(model=svc, dataset=ED_dataset, param_grid=param_grid)
 md3.run()
