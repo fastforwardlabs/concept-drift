@@ -146,6 +146,9 @@ class BaselineExperiment(Experiment):
             gscv_test_score = gs.best_score_
             best_params = gs.best_params_
 
+            # update self.model to hold best params
+            self.model = self.trained_model.get_params()["clf"]
+
         else:
 
             # fit model
