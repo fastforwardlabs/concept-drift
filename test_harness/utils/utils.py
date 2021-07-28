@@ -55,6 +55,7 @@ def plot_multiple_experiments(experiments, change_points=None):
             if i != 0
         ]
     plt.show()
+    #plt.savefig('../figures/multiple_experiments.png')
 
 
 def aggregate_experiment_metrics(experiments):
