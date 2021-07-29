@@ -62,6 +62,7 @@ class UncertaintyX2Experiment(BaselineExperiment):
 
         preds = np.array([])
         pred_margins = np.array([])
+        split_ACCs = np.array([])
 
         for train_indicies, test_indicies in splitter.split(X, y):
 
@@ -105,7 +106,11 @@ class UncertaintyX2Experiment(BaselineExperiment):
             diffs = top_2_probs[:, 0] - top_2_probs[:, 1]
             pred_margins = np.append(pred_margins, diffs)
 
-        return preds, pred_margins
+            # get accuracy for split
+            split_ACC = pipe.score(X.iloc[test_indicies], y.iloc[test_indicies])
+            split_ACCs = np.append(split_ACCs, split_ACC)
+
+        return preds, pred_margins, split_ACCs
 
     def get_reference_response_distribution(self):
 
@@ -117,11 +122,14 @@ class UncertaintyX2Experiment(BaselineExperiment):
         print(f"SELF MODEL: {self.model}")
 
         # perform kfoldsplits to get predictions
-        preds, pred_margins = self.make_kfold_predictions(
+        preds, pred_margins, split_ACCs = self.make_kfold_predictions(
             X_train, y_train, self.model, self.dataset, self.k
         )
 
-        return preds, pred_margins
+        ref_ACC = np.mean(split_ACCs)
+        ref_ACC_SD = np.std(split_ACCs)
+
+        return preds, pred_margins, ref_ACC, ref_ACC_SD
 
     def get_detection_response_distribution(self):
 
@@ -139,11 +147,21 @@ class UncertaintyX2Experiment(BaselineExperiment):
         top_2_probs = -np.partition(-y_preds_split, kth=1, axis=-1)
         pred_margins = top_2_probs[:, 0] - top_2_probs[:, 1]
 
-        return preds, pred_margins
+        # get accuracy for detection window
+        det_ACC = self.evaluate_model_aggregate(window="detection")
 
-    @staticmethod
-    def perform_ks_test(dist1, dist2):
-        return ks_2samp(dist1, dist2)
+        return preds, pred_margins, det_ACC
+
+    def calculate_errors(self):
+
+        self.false_positives = [
+            True if self.drift_signals[i] and not self.drift_occurences[i] else False
+            for i in range(len(self.drift_signals))
+        ]
+        self.false_negatives = [
+            True if not self.drift_signals[i] and self.drift_occurences[i] else False
+            for i in range(len(self.drift_signals))
+        ]
 
     def run(self):
         """Response Margin Uncertainty Experiment
@@ -188,10 +206,13 @@ class UncertaintyX2Experiment(BaselineExperiment):
                     (
                         ref_response_dist,
                         ref_response_margins,
+                        ref_ACC,
+                        ref_ACC_SD,
                     ) = self.get_reference_response_distribution()
                 (
                     det_response_dist,
                     det_response_margins,
+                    det_ACC,
                 ) = self.get_detection_response_distribution()
 
                 self.ref_distributions.append(ref_response_dist)
@@ -221,7 +242,19 @@ class UncertaintyX2Experiment(BaselineExperiment):
 
                 logger.info(f"KS Test: {x2_result}")
 
-                if x2_result[1] < self.significance_thresh:
+                significant_change = (
+                    True if x2_result[1] < self.significance_thresh else False
+                )
+                self.drift_signals.append(significant_change)
+
+                # compare accuracies to see if detection was false alarm
+                # i.e. check if change in accuracy is significant
+                delta_ACC = np.absolute(det_ACC - ref_ACC)
+                threshold_ACC = 3 * ref_ACC_SD  # considering outside 3 SD significant
+                significant_ACC_change = True if delta_ACC > threshold_ACC else False
+                self.drift_occurences.append(significant_ACC_change)
+
+                if significant_change:
                     # reject null hyp, distributions are NOT same --> retrain
                     self.train_model_gscv(window="detection", gscv=True)
                     self.update_reference_window()
@@ -238,3 +271,4 @@ class UncertaintyX2Experiment(BaselineExperiment):
 
         self.calculate_label_expense()
         self.calculate_train_expense()
+        self.calculate_errors()

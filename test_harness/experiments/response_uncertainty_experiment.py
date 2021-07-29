@@ -57,6 +57,8 @@ class UncertaintyKSExperiment(BaselineExperiment):
         # splitter = LeaveOneOut()
 
         preds = np.array([])
+        split_ACCs = np.array([])
+
         for train_indicies, test_indicies in splitter.split(X, y):
 
             # create column transformer
@@ -91,9 +93,13 @@ class UncertaintyKSExperiment(BaselineExperiment):
             y_preds_split_posclass_proba = y_preds_split[:, 1]
             preds = np.append(preds, y_preds_split_posclass_proba)
 
+            # get accuracy for split
+            split_ACC = pipe.score(X.iloc[test_indicies], y.iloc[test_indicies])
+            split_ACCs = np.append(split_ACCs, split_ACC)
+
         print(f"FINAL SHAPE kfold preds: {preds.shape}")
 
-        return preds
+        return preds, split_ACCs
 
     def get_reference_response_distribution(self):
 
@@ -103,11 +109,14 @@ class UncertaintyKSExperiment(BaselineExperiment):
         X_train, y_train = self.dataset.get_window_data(window_idx, split_labels=True)
 
         # perform kfoldsplits to get predictions
-        preds = self.make_kfold_predictions(
+        preds, split_ACCs = self.make_kfold_predictions(
             X_train, y_train, self.model, self.dataset, self.k
         )
 
-        return preds
+        ref_ACC = np.mean(split_ACCs)
+        ref_ACC_SD = np.std(split_ACCs)
+
+        return preds, ref_ACC, ref_ACC_SD
 
     def get_detection_response_distribution(self):
 
@@ -119,11 +128,25 @@ class UncertaintyKSExperiment(BaselineExperiment):
         # use trained model to get response distribution
         preds = self.trained_model.predict_proba(X_test)[:, 1]
 
-        return preds
+        # get accuracy for detection window
+        det_ACC = self.evaluate_model_aggregate(window="detection")
+
+        return preds, det_ACC
 
     @staticmethod
     def perform_ks_test(dist1, dist2):
         return ks_2samp(dist1, dist2)
+
+    def calculate_errors(self):
+
+        self.false_positives = [
+            True if self.drift_signals[i] and not self.drift_occurences[i] else False
+            for i in range(len(self.drift_signals))
+        ]
+        self.false_negatives = [
+            True if not self.drift_signals[i] and self.drift_occurences[i] else False
+            for i in range(len(self.drift_signals))
+        ]
 
     def run(self):
         """Response Uncertainty Experiment
@@ -163,8 +186,12 @@ class UncertaintyKSExperiment(BaselineExperiment):
 
                 # get reference window response distribution with kfold + detection response distribution
                 if CALC_REF_RESPONSE:
-                    ref_response_dist = self.get_reference_response_distribution()
-                det_response_dist = self.get_detection_response_distribution()
+                    (
+                        ref_response_dist,
+                        ref_ACC,
+                        ref_ACC_SD,
+                    ) = self.get_reference_response_distribution()
+                det_response_dist, det_ACC = self.get_detection_response_distribution()
 
                 logger.info(f"REFERENCE STATS: {describe(ref_response_dist)}")
                 logger.info(f"DETECTION STATS: {describe(det_response_dist)}")
@@ -184,7 +211,19 @@ class UncertaintyKSExperiment(BaselineExperiment):
 
                 logger.info(f"KS Test: {ks_result}")
 
-                if ks_result[1] < self.significance_thresh:
+                significant_change = (
+                    True if ks_result[1] < self.significance_thresh else False
+                )
+                self.drift_signals.append(significant_change)
+
+                # compare accuracies to see if detection was false alarm
+                # i.e. check if change in accuracy is significant
+                delta_ACC = np.absolute(det_ACC - ref_ACC)
+                threshold_ACC = 3 * ref_ACC_SD  # considering outside 3 SD significant
+                significant_ACC_change = True if delta_ACC > threshold_ACC else False
+                self.drift_occurences.append(significant_ACC_change)
+
+                if significant_change:
                     # reject null hyp, distributions are NOT identical --> retrain
                     self.train_model_gscv(window="detection", gscv=True)
                     self.update_reference_window()
@@ -201,3 +240,4 @@ class UncertaintyKSExperiment(BaselineExperiment):
 
         self.calculate_label_expense()
         self.calculate_train_expense()
+        self.calculate_errors()

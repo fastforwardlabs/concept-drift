@@ -65,7 +65,10 @@ def aggregate_experiment_metrics(experiments):
         metrics.append(
             {
                 "experiment": exp.name,
-                "times_retrained": len(exp.experiment_metrics["training"]),
+                "drifts_signaled": sum(exp.drift_signals),
+                "actual_drift_occurences": sum(exp.drift_occurences),
+                "false_positives": sum(exp.false_positives),
+                "false_negatives": sum(exp.false_negatives),
                 "percent_total_labels": exp.experiment_metrics["label_expense"][
                     "percent_total_labels"
                 ],

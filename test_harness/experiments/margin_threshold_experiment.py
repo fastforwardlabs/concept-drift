@@ -37,15 +37,20 @@ class MarginThresholdExperiment(BaselineExperiment):
         self.k = k
         self.margin_width = margin_width
         self.sensitivity = sensitivity
+        self.drift_signals = []
+        self.drift_occurences = []
 
         self.ref_distributions = []
         self.ref_margins = []
         self.ref_MDs = []
         self.ref_SDs = []
+        self.ref_ACCs = []
+        self.ref_ACC_SDs = []
 
         self.det_distributions = []
         self.det_margins = []
         self.det_MDs = []
+        self.det_ACCs = []
 
     @staticmethod
     def make_kfold_predictions(X, y, model, dataset, k, margin_width):
@@ -73,6 +78,7 @@ class MarginThresholdExperiment(BaselineExperiment):
         preds = np.array([])
         pred_margins = np.array([])
         split_MDs = np.array([])
+        split_ACCs = np.array([])
 
         for train_indicies, test_indicies in splitter.split(X, y):
 
@@ -124,7 +130,11 @@ class MarginThresholdExperiment(BaselineExperiment):
             )
             split_MDs = np.append(split_MDs, split_MD)
 
-        return preds, pred_margins, split_MDs
+            # get accuracy for split
+            split_ACC = pipe.score(X.iloc[test_indicies], y.iloc[test_indicies])
+            split_ACCs = np.append(split_ACCs, split_ACC)
+
+        return preds, pred_margins, split_MDs, split_ACCs
 
     def get_reference_response_distribution(self):
 
@@ -136,14 +146,17 @@ class MarginThresholdExperiment(BaselineExperiment):
         print(f"SELF MODEL: {self.model}")
 
         # perform kfoldsplits to get predictions
-        preds, pred_margins, split_MDs = self.make_kfold_predictions(
+        preds, pred_margins, split_MDs, split_ACCs = self.make_kfold_predictions(
             X_train, y_train, self.model, self.dataset, self.k, self.margin_width
         )
 
         ref_MD = np.mean(split_MDs)
         ref_SD = np.std(split_MDs)
 
-        return preds, pred_margins, ref_MD, ref_SD
+        ref_ACC = np.mean(split_ACCs)
+        ref_ACC_SD = np.std(split_ACCs)
+
+        return preds, pred_margins, ref_MD, ref_SD, ref_ACC, ref_ACC_SD
 
     def get_detection_response_distribution(self):
 
@@ -167,7 +180,21 @@ class MarginThresholdExperiment(BaselineExperiment):
             .value_counts(normalize=True)[1]
         )
 
-        return preds, pred_margins, det_MD
+        # get accuracy for detection window
+        det_ACC = self.evaluate_model_aggregate(window="detection")
+
+        return preds, pred_margins, det_MD, det_ACC
+
+    def calculate_errors(self):
+
+        self.false_positives = [
+            True if self.drift_signals[i] and not self.drift_occurences[i] else False
+            for i in range(len(self.drift_signals))
+        ]
+        self.false_negatives = [
+            True if not self.drift_signals[i] and self.drift_occurences[i] else False
+            for i in range(len(self.drift_signals))
+        ]
 
     def run(self):
         """Response Margin Threshold Experiment
@@ -217,12 +244,15 @@ class MarginThresholdExperiment(BaselineExperiment):
                         ref_response_margins,
                         ref_MD,
                         ref_SD,
+                        ref_ACC,
+                        ref_ACC_SD,
                     ) = self.get_reference_response_distribution()
 
                 (
                     det_response_dist,
                     det_response_margins,
                     det_MD,
+                    det_ACC,
                 ) = self.get_detection_response_distribution()
 
                 # save reference window items
@@ -230,16 +260,20 @@ class MarginThresholdExperiment(BaselineExperiment):
                 self.ref_margins.append(ref_response_margins)
                 self.ref_MDs.append(ref_MD)
                 self.ref_SDs.append(ref_SD)
+                self.ref_ACCs.append(ref_ACC)
+                self.ref_ACC_SDs.append(ref_ACC_SD)
 
                 # save detection window items
                 self.det_distributions.append(det_response_dist)
                 self.det_margins.append(det_response_margins)
                 self.det_MDs.append(det_MD)
+                self.det_ACCs.append(det_ACC)
 
-                # compare margin densities
+                # compare margin densities to detect drift
                 delta_MD = np.absolute(det_MD - ref_MD)
                 threshold = self.sensitivity * ref_SD
                 significant_MD_change = True if delta_MD > threshold else False
+                self.drift_signals.append(significant_MD_change)
 
                 print(f"Significant Change in Margin Density: {significant_MD_change}")
                 print(f"Change in MD: {delta_MD}")
@@ -255,6 +289,13 @@ class MarginThresholdExperiment(BaselineExperiment):
                     f"Sensitivity: {self.sensitivity} | Ref_SD: {ref_SD} | Threshold: {threshold}"
                 )
 
+                # compare accuracies to see if detection was false alarm
+                # i.e. check if change in accuracy is significant
+                delta_ACC = np.absolute(det_ACC - ref_ACC)
+                threshold_ACC = 3 * ref_ACC_SD  # considering outside 3 SD significant
+                significant_ACC_change = True if delta_ACC > threshold_ACC else False
+                self.drift_occurences.append(significant_ACC_change)
+
                 if significant_MD_change:
                     self.train_model_gscv(window="detection", gscv=True)
                     self.update_reference_window()
@@ -267,3 +308,4 @@ class MarginThresholdExperiment(BaselineExperiment):
 
         self.calculate_label_expense()
         self.calculate_train_expense()
+        self.calculate_errors()

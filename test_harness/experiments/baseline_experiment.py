@@ -37,6 +37,9 @@ class BaselineExperiment(Experiment):
         self.metric = "accuracy"
         self.param_grid = param_grid
 
+        self.drift_signals = []
+        self.drift_occurences = []
+
     def update_reference_window(self, split_idx=None):
         """Increments reference window by 1 index, unless split_idx is provided,
         in which case that index becomes the reference window index."""
@@ -295,6 +298,11 @@ class BaselineExperiment(Experiment):
 
         logger.info(f"Train Metrics: {total_train_time}")
 
+    def calculate_errors(self):
+
+        self.false_positives = []
+        self.false_negatives = []  # TO-DO: think through this..should be 4?
+
     def run(self):
         """The Baseline Experiment simply trains a model on the initial reference window
         and then evaluates on each incremental detection window with NO retraining.
@@ -321,3 +329,4 @@ class BaselineExperiment(Experiment):
 
         self.calculate_label_expense()
         self.calculate_train_expense()
+        self.calculate_errors()
