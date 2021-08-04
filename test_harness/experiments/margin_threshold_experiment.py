@@ -219,7 +219,7 @@ class MarginThresholdExperiment(BaselineExperiment):
 
         """
         logger.info(
-            f"-------------------- Started Response Margin Uncertainty Experiment Run --------------------"
+            f"-------------------- Started Response Margin Threshold Experiment Run --------------------"
         )
         self.train_model_gscv(window="reference", gscv=True)
 
