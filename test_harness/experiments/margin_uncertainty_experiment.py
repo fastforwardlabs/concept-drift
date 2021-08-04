@@ -240,7 +240,7 @@ class UncertaintyX2Experiment(BaselineExperiment):
 
                 self.p_vals.append(x2_result.pvalue)
 
-                logger.info(f"KS Test: {x2_result}")
+                logger.info(f"Chi-sq Test: {x2_result}")
 
                 significant_change = (
                     True if x2_result[1] < self.significance_thresh else False
