@@ -20,6 +20,9 @@ from test_harness.experiments.response_uncertainty_experiment import (
 from test_harness.experiments.margin_uncertainty_experiment import (
     UncertaintyX2Experiment,
 )
+from test_harness.experiments.margin_threshold_experiment import (
+    MarginThresholdExperiment,
+)
 from test_harness.utils.utils import (
     plot_experiment_error,
     plot_multiple_experiments,
@@ -29,6 +32,7 @@ from test_harness.utils.utils import (
     format_experimental_scores,
     calculate_split_window_distances,
 )
+pd.set_option('display.max_columns', None)
 
 with open("../data/covtype_induced_drift_forward_norm.pkl", "rb") as f:
     drift_df, change_points = pickle.load(f)
@@ -60,8 +64,8 @@ CT_dataset = Dataset(
     full_df=drift_df, column_mapping=column_mapping, window_size=17500 * 3
 )
 
-model = RandomForestClassifier(n_estimators=500, random_state=42, max_depth=5)
-param_grid = {"clf__n_estimators": [500, 1000], "clf__max_depth": [3, 5]}
+model = RandomForestClassifier(n_estimators=50, random_state=42, max_depth=5)
+param_grid = {"clf__n_estimators": [10, 50], "clf__max_depth": [3, 5]}
 
 
 baseline = BaselineExperiment(model=model, dataset=CT_dataset, param_grid=param_grid)
@@ -89,7 +93,16 @@ uncertainty_x2 = UncertaintyX2Experiment(
 )
 uncertainty_x2.run()
 
-exps = [baseline, topline, uncertainty_ks, uncertainty_x2]
+margin_threshold = MarginThresholdExperiment(
+        model=model,
+        dataset=CT_dataset,
+        param_grid=param_grid,
+        k=10,
+        margin_width=0.1,
+        sensitivity=1,
+    )
+margin_threshold.run()
+
+exps = [baseline, topline, uncertainty_ks, uncertainty_x2, margin_threshold]
 plot_multiple_experiments(exps, change_points)
 print(aggregate_experiment_metrics(exps))
-
