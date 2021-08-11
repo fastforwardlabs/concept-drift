@@ -27,7 +27,7 @@ def plot_experiment_error(experiment, retrain_points=True):
         for window_idx in [
             train_record["window_idx"]
             for train_record in experiment.experiment_metrics["training"]
-        ]
+        ][1:]
     ]
 
     if retrain_points:
