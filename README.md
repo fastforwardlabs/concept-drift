@@ -38,7 +38,7 @@ This repo accompanies the Cloudera Fast Forward Labs research report - [FF22: In
 |   ├── margin_uncertainty_experiment.py      # method 3 from report
 │   └── margin_threshold_experiment.py        # method 4 from report
 └── utils
-    └── utils.py															# plotting and reporting utilities
+    └── utils.py														  # plotting and reporting utilities 
 ```
 
 This directory provides the main library for interacting with drift detection methods, experiments, and plotting utlities. Refer to the report for details on each experimental method.
