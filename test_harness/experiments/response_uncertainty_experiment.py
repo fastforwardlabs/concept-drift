@@ -4,8 +4,8 @@ import numpy as np
 from scipy.stats import ks_2samp, describe
 from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
-from sklearn.preprocessing import MinMaxScaler, StandardScaler
-from sklearn.model_selection import StratifiedKFold, LeaveOneOut
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import StratifiedKFold
 
 from test_harness.experiments.baseline_experiment import BaselineExperiment
 
@@ -97,7 +97,7 @@ class UncertaintyKSExperiment(BaselineExperiment):
             split_ACC = pipe.score(X.iloc[test_indicies], y.iloc[test_indicies])
             split_ACCs = np.append(split_ACCs, split_ACC)
 
-        print(f"FINAL SHAPE kfold preds: {preds.shape}")
+        logger.info(f"FINAL SHAPE kfold preds: {preds.shape}")
 
         return preds, split_ACCs
 
@@ -105,7 +105,7 @@ class UncertaintyKSExperiment(BaselineExperiment):
 
         # get data in reference window
         window_idx = self.reference_window_idx
-        print(f"GETTING REFERENCE DISTRIBUTION FOR WINDOW: {window_idx}")
+        logger.info(f"GETTING REFERENCE DISTRIBUTION FOR WINDOW: {window_idx}")
         X_train, y_train = self.dataset.get_window_data(window_idx, split_labels=True)
 
         # perform kfoldsplits to get predictions
@@ -122,7 +122,7 @@ class UncertaintyKSExperiment(BaselineExperiment):
 
         # get data in prediction window
         window_idx = self.detection_window_idx
-        print(f"GETTING DETECTION DISTRIBUTION FOR WINDOW: {window_idx}")
+        logger.info(f"GETTING DETECTION DISTRIBUTION FOR WINDOW: {window_idx}")
         X_test, y_test = self.dataset.get_window_data(window_idx, split_labels=True)
 
         # use trained model to get response distribution
@@ -173,7 +173,7 @@ class UncertaintyKSExperiment(BaselineExperiment):
         for i, split in enumerate(self.dataset.splits):
 
             if i > self.reference_window_idx:
-                print(f"Dataset index of split end: {self.dataset.splits[i]}")
+                logger.info(f"Dataset index of split end: {self.dataset.splits[i]}")
 
                 logger.info(
                     f"Need to calculate Reference response distribution? - {CALC_REF_RESPONSE}"
@@ -196,9 +196,9 @@ class UncertaintyKSExperiment(BaselineExperiment):
                 logger.info(f"REFERENCE STATS: {describe(ref_response_dist)}")
                 logger.info(f"DETECTION STATS: {describe(det_response_dist)}")
 
-                print(f"Dataset Split: {i}")
-                print(f"REFERENCE STATS: {describe(ref_response_dist)}")
-                print(f"DETECTION STATS: {describe(det_response_dist)}")
+                logger.info(f"Dataset Split: {i}")
+                logger.info(f"REFERENCE STATS: {describe(ref_response_dist)}")
+                logger.info(f"DETECTION STATS: {describe(det_response_dist)}")
 
                 self.ref_distributions.append(ref_response_dist)
                 self.det_distributions.append(det_response_dist)
@@ -235,8 +235,7 @@ class UncertaintyKSExperiment(BaselineExperiment):
 
                 self.update_detection_window()
 
-                print(f"KS Test Result: {_ks_result_report} | {ks_result}")
-                print()
+                logger.info(f"KS Test Result: {_ks_result_report} | {ks_result}")
 
         self.calculate_label_expense()
         self.calculate_train_expense()

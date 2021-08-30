@@ -1,7 +1,6 @@
 import logging
 
 import numpy as np
-import pandas as pd
 from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import StandardScaler
@@ -91,10 +90,10 @@ class ToplineExperiment(BaselineExperiment):
 
         # get data in reference window
         window_idx = self.reference_window_idx
-        print(f"GETTING REFERENCE DISTRIBUTION FOR WINDOW: {window_idx}")
+        logger.info(f"GETTING REFERENCE DISTRIBUTION FOR WINDOW: {window_idx}")
         X_train, y_train = self.dataset.get_window_data(window_idx, split_labels=True)
 
-        print(f"SELF MODEL: {self.model}")
+        logger.info(f"SELF MODEL: {self.model}")
 
         # perform kfoldsplits to get predictions
         split_ACCs = self.make_kfold_predictions(

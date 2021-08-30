@@ -2,11 +2,11 @@ import logging
 
 import numpy as np
 import pandas as pd
-from scipy.stats import ks_2samp, chisquare
+from scipy.stats import chisquare
 from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
-from sklearn.preprocessing import MinMaxScaler, StandardScaler
-from sklearn.model_selection import StratifiedKFold, LeaveOneOut
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import StratifiedKFold
 
 from test_harness.experiments.baseline_experiment import BaselineExperiment
 
@@ -116,10 +116,10 @@ class UncertaintyX2Experiment(BaselineExperiment):
 
         # get data in reference window
         window_idx = self.reference_window_idx
-        print(f"GETTING REFERENCE DISTRIBUTION FOR WINDOW: {window_idx}")
+        logger.info(f"GETTING REFERENCE DISTRIBUTION FOR WINDOW: {window_idx}")
         X_train, y_train = self.dataset.get_window_data(window_idx, split_labels=True)
 
-        print(f"SELF MODEL: {self.model}")
+        logger.info(f"SELF MODEL: {self.model}")
 
         # perform kfoldsplits to get predictions
         preds, pred_margins, split_ACCs = self.make_kfold_predictions(
@@ -135,7 +135,7 @@ class UncertaintyX2Experiment(BaselineExperiment):
 
         # get data in prediction window
         window_idx = self.detection_window_idx
-        print(f"GETTING DETECTION DISTRIBUTION FOR WINDOW: {window_idx}")
+        logger.info(f"GETTING DETECTION DISTRIBUTION FOR WINDOW: {window_idx}")
         X_test, y_test = self.dataset.get_window_data(window_idx, split_labels=True)
 
         # use trained model to get response distribution
@@ -190,7 +190,7 @@ class UncertaintyX2Experiment(BaselineExperiment):
         for i, split in enumerate(self.dataset.splits):
 
             if i > self.reference_window_idx:
-                print(f"Dataset index of split end: {self.dataset.splits[i]}")
+                logger.info(f"Dataset index of split end: {self.dataset.splits[i]}")
 
                 logger.info(
                     f"Need to calculate Reference response distribution? - {CALC_REF_RESPONSE}"
@@ -266,8 +266,7 @@ class UncertaintyX2Experiment(BaselineExperiment):
 
                 self.update_detection_window()
 
-                print(f"X2 Test Result: {_ks_result_report} | {x2_result}")
-                print()
+                logger.info(f"X2 Test Result: {_ks_result_report} | {x2_result}")
 
         self.calculate_label_expense()
         self.calculate_train_expense()
