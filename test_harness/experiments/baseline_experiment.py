@@ -2,11 +2,10 @@ import time
 import logging
 from collections import defaultdict
 
-import pandas as pd
 from river import metrics
 from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
-from sklearn.preprocessing import MinMaxScaler, StandardScaler
+from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import GridSearchCV
 
 from test_harness.experiments.base_experiment import Experiment
@@ -36,7 +35,6 @@ class BaselineExperiment(Experiment):
         self.incremental_metric = metrics.Accuracy()
         self.metric = "accuracy"
         self.param_grid = param_grid
-
         self.drift_signals = []
         self.drift_occurences = []
 
@@ -50,47 +48,8 @@ class BaselineExperiment(Experiment):
         in which case that index becomes the detection window index."""
         self.detection_window_idx += 1 if not split_idx else split_idx
 
-    def train_model(self, window="reference"):
-        """Trains model on specified window and updates 'trained_model' attribute."""
-
-        # instantiate training pipeline
-        pipe = Pipeline(
-            steps=[
-                ("scaler", MinMaxScaler()),
-                ("clf", self.model),
-            ]
-        )
-
-        # gather training data
-        window_idx = (
-            self.reference_window_idx
-            if window == "reference"
-            else self.detection_window_idx
-        )
-        X_train, y_train = self.dataset.get_window_data(window_idx, split_labels=True)
-
-        # fit model
-        logger.info(f"Trained Model at Index: {window_idx}")
-        start_time = time.time()
-        self.trained_model = pipe.fit(X_train, y_train)
-        end_time = time.time()
-
-        train_time = end_time - start_time
-
-        # train evaluation
-        eval_score = self.evaluate_model_aggregate(window=window)
-
-        # save metrics
-        metrics = {
-            "window_idx": window_idx,
-            "num_train_examples": len(y_train),
-            "train_time": train_time,
-            "eval_score": eval_score,
-        }
-        self.experiment_metrics["training"].append(metrics)
-
     def train_model_gscv(self, window="reference", gscv=False):
-        """Trains model on specified window and updates 'trained_model' attribute."""
+        """Trains model using grid search cross validation on specified window and updates 'trained_model' attribute."""
 
         # gather training data
         window_idx = (

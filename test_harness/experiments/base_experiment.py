@@ -24,7 +24,7 @@ class Experiment(ABC):
         pass
 
     @abstractmethod
-    def train_model(self):
+    def train_model_gscv(self):
         pass
 
     @abstractmethod
