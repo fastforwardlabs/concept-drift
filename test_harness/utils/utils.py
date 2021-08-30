@@ -45,7 +45,10 @@ def plot_multiple_experiments(experiments, change_points=None):
     exp_dfs = [format_experimental_scores(experiment) for experiment in experiments]
 
     ax = pd.concat(exp_dfs, axis=1).plot(
-        figsize=(15, 7), title="Overall Score by Experiment"
+        figsize=(15, 7),
+        title="Cumulative Accuracy on Data Stream by Drift Detection Method",
+        xlabel="Observations",
+        ylabel="Cumulative Accuracy",
     )
 
     if change_points:
@@ -55,7 +58,7 @@ def plot_multiple_experiments(experiments, change_points=None):
             if i != 0
         ]
     plt.show()
-    #plt.savefig('../figures/multiple_experiments.png')
+    # plt.savefig('../figures/multiple_experiments.png')
 
 
 def aggregate_experiment_metrics(experiments):

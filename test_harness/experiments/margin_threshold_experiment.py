@@ -33,7 +33,7 @@ class MarginThresholdExperiment(BaselineExperiment):
         param_grid=None,
     ):
         super().__init__(model, dataset, param_grid)
-        self.name = "margin-threshold"
+        self.name = f"Method 4 (Margin-Threshold-S{sensitivity})"
         self.k = k
         self.margin_width = margin_width
         self.sensitivity = sensitivity

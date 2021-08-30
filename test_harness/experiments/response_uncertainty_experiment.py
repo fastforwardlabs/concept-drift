@@ -24,7 +24,7 @@ logger.addHandler(file_handler)
 class UncertaintyKSExperiment(BaselineExperiment):
     def __init__(self, model, dataset, k, significance_thresh, param_grid=None):
         super().__init__(model, dataset, param_grid)
-        self.name = "uncertainty-ks"
+        self.name = "Method 2 (Uncertainty-KS)"
         self.k = k
         self.significance_thresh = significance_thresh
         self.ref_distributions = []

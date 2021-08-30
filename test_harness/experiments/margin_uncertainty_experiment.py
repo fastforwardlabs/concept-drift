@@ -27,7 +27,7 @@ class UncertaintyX2Experiment(BaselineExperiment):
         self, model, dataset, k, significance_thresh, margin_width, param_grid=None
     ):
         super().__init__(model, dataset, param_grid)
-        self.name = "uncertainty-x2"
+        self.name = "Method 3 (Uncertainty-X2)"
         self.k = k
         self.significance_thresh = significance_thresh
         self.ref_distributions = []

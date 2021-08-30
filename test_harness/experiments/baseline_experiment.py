@@ -26,7 +26,7 @@ logger.addHandler(file_handler)
 class BaselineExperiment(Experiment):
     def __init__(self, model, dataset, param_grid=None):
 
-        self.name = "baseline"
+        self.name = "Baseline"
         self.dataset = dataset
         self.model = model
         self.trained_model = None

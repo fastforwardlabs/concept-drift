@@ -24,7 +24,7 @@ logger.addHandler(file_handler)
 class ToplineExperiment(BaselineExperiment):
     def __init__(self, model, dataset, k, param_grid=None):
         super().__init__(model, dataset, param_grid)
-        self.name = "topline"
+        self.name = "Topline"
         self.k = k
 
     @staticmethod
