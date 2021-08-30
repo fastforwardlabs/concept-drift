@@ -14,6 +14,8 @@ def format_experimental_scores(experiment):
 
 
 def plot_experiment_error(experiment, retrain_points=True):
+    """Utility for plotting single experiment's cumulative error"""
+
     scores_df = format_experimental_scores(experiment)
     ax = scores_df.plot(
         figsize=(15, 7),
@@ -41,6 +43,7 @@ def plot_experiment_error(experiment, retrain_points=True):
 
 
 def plot_multiple_experiments(experiments, change_points=None):
+    """Utility for plotting multiple experiment's cumulative error"""
 
     exp_dfs = [format_experimental_scores(experiment) for experiment in experiments]
 
@@ -62,6 +65,7 @@ def plot_multiple_experiments(experiments, change_points=None):
 
 
 def aggregate_experiment_metrics(experiments):
+    """Utility for aggregating metrics given multiple experiments"""
 
     metrics = []
     for exp in experiments:
